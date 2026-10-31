@@ -242,6 +242,12 @@ export const FacebookAdsStudio: React.FC<FacebookAdsStudioProps> = ({
   const [metaLaunchResult, setMetaLaunchResult] = useState<any | null>(null);
   const [metaLaunchError, setMetaLaunchError] = useState<string | null>(null);
 
+  // Meta App Review Helper & Required API Test Calls Runner
+  const [showAppReviewHelper, setShowAppReviewHelper] = useState(false);
+  const [isRunningTestCalls, setIsRunningTestCalls] = useState(false);
+  const [testCallsResult, setTestCallsResult] = useState<any | null>(null);
+  const [copiedReviewText, setCopiedReviewText] = useState<string | null>(null);
+
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [copiedJson, setCopiedJson] = useState(false);
@@ -356,6 +362,119 @@ export const FacebookAdsStudio: React.FC<FacebookAdsStudioProps> = ({
     } finally {
       setIsLoadingAccounts(false);
     }
+  };
+
+  const handleRunReviewTestCalls = async () => {
+    setIsRunningTestCalls(true);
+    setMetaLaunchError(null);
+    setTestCallsResult(null);
+    try {
+      const res = await fetch("/api/facebook-ads/run-review-test-calls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: metaAccessToken,
+          adAccountId: fbConfig.adAccountId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(
+          data.error ||
+            "Paste a Meta Graph API Access Token above to fire the required Marketing API test calls."
+        );
+      }
+      setTestCallsResult(data);
+      if (data.detectedAdAccountId) {
+        updateFbConfig({
+          adAccountId: data.detectedAdAccountId,
+          ...(data.detectedPageId
+            ? { facebookPageId: data.detectedPageId }
+            : {}),
+        });
+      }
+    } catch (err: any) {
+      setMetaLaunchError(
+        err?.message || "Failed to execute Meta App Review test calls."
+      );
+    } finally {
+      setIsRunningTestCalls(false);
+    }
+  };
+
+  const handleCopyReviewBlock = (key: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedReviewText(key);
+    setTimeout(() => setCopiedReviewText(null), 2200);
+  };
+
+  const metaReviewUsageAnswer = `We use the Meta Marketing API Access Tier inside our internal & client-facing advertising dashboard (TidyUps Cleaning Ads Studio — https://ads.tidyupscleaning.com) to create, manage, pause, and monitor local residential cleaning Lead & Website Traffic campaigns on Facebook and Instagram for TidyUps Cleaning in Edmonton, AB. Specifically, our application uses the Marketing API to: (1) authenticate our authorized business ad account via Facebook Login OAuth, (2) set daily CAD budgets and local radius targeting, (3) publish ad campaigns, ad sets, and Instant Lead Form / Booking ad creatives linked to https://app.tidyupscleaning.com/booking and our Privacy Policy (https://ads.tidyupscleaning.com/privacy), and (4) read campaign delivery status and performance metrics.`;
+
+  const metaReviewPermissionAnswer = `Our application (TidyUps Cleaning Ads Studio) integrates the Marketing API (ads_management and ads_read) in the "Facebook & Instagram Ads" tab so the business owner/administrator can:
+1. Click "Connect with Facebook" to authenticate their Meta Business account and select their Ad Account (GET /v21.0/me/adaccounts) and Facebook Page (GET /v21.0/me/accounts).
+2. Configure daily ad spend budget in CAD, select geographic targeting around Edmonton & South Edmonton, and review 3 residential cleaning ad creatives (Move-Out Cleaning & Deep House Cleaning) with compliant Privacy Policy links (https://ads.tidyupscleaning.com/privacy).
+3. Click "Launch Facebook & Instagram Ads" to create the Campaign (POST /v21.0/{ad_account_id}/campaigns), Ad Set (POST /v21.0/{ad_account_id}/adsets), Ad Creative, and Ad (POST /v21.0/{ad_account_id}/ads), as well as read campaign performance insights (GET /v21.0/{ad_account_id}/insights).
+All data is used strictly to manage and optimize TidyUps Cleaning's own advertising campaigns in full compliance with Meta Platform Terms and Advertising Policies.`;
+
+  const metaReviewInstructionsWeb2 = `1. Navigate to our web application at: https://ads.tidyupscleaning.com (Backup preview URL: https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app). If prompted for an access password/code, enter: tester2026
+2. In the top navigation tabs, click the "Facebook & Instagram Ads" tab (highlighted with the Meta badge).
+3. Under "Step 1 · Facebook & Instagram Business Account Connection", click the blue "Connect with Facebook" button.
+4. This launches the official Facebook Login OAuth dialog (https://www.facebook.com/v21.0/dialog/oauth) requesting public_profile, ads_management, ads_read, pages_show_list, and leads_retrieval permissions.
+5. After authenticating with Facebook Login, the app calls the Meta Graph API (GET /v21.0/me, GET /v21.0/me/adaccounts, and GET /v21.0/me/accounts) to display the connected Meta user profile, Ad Account ID, and Facebook Page.
+6. Under "Step 2 · 1-Click Meta Lead Campaign Launcher", set a daily CAD budget, review the 3 residential cleaning Lead & Booking ads (linked to https://app.tidyupscleaning.com/booking and Privacy Policy https://ads.tidyupscleaning.com/privacy), and click "Launch Facebook & Instagram Ads" to test campaign/ad set/ad creation (POST /v21.0/{ad_account_id}/campaigns, /adsets, /ads) and insights retrieval (GET /v21.0/{ad_account_id}/insights).
+
+Confirmation of Meta APIs & Facebook Login Usage:
+We confirm that Facebook Login is actively integrated on this web platform. We only request public_profile alongside Marketing API permissions (ads_management, ads_read, pages_show_list, pages_read_engagement, leads_retrieval) to authenticate the business advertiser and manage TidyUps Cleaning ad campaigns. We do NOT request or use restricted personal profile permissions such as user_friends, user_gender, or user_birthday.`;
+
+  const metaReviewAccessCodeWeb1 = `No payment or paid membership is required to access or test any feature of https://ads.tidyupscleaning.com.
+If prompted for a reviewer access password/code, use: tester2026
+Reviewers may also click "Connect with Facebook" using any Meta Reviewer Test User account or paste a test Graph API token in the "Access Token" drawer under Step 1.`;
+
+  const metaReviewGeoWeb5 = `There are NO geo-blocking, IP, or country restrictions on accessing or testing this web application — Meta App Reviewers from any country worldwide can access https://ads.tidyupscleaning.com and https://app.tidyupscleaning.com/booking without restriction.
+(Note: Our company, TidyUps Cleaning, physically performs residential move-out and deep cleaning services for customers in Edmonton, Alberta, Canada and surrounding areas, so the default ad campaign radius templates are pre-filled for Edmonton, AB, Canada.)`;
+
+  const handleDownloadReviewDoc = () => {
+    const docText = `====================================================================
+META APP REVIEW — VERIFICATION & TESTING DOCUMENTATION
+App Name: TidyUps Cleaning Ads Studio
+Primary Web App URL: https://ads.tidyupscleaning.com
+Booking Portal URL: https://app.tidyupscleaning.com/booking
+Privacy Policy URL: https://ads.tidyupscleaning.com/privacy
+Terms & Conditions URL: https://ads.tidyupscleaning.com/terms
+Support & Data Deletion URL: https://ads.tidyupscleaning.com/support
+Business Phone: 587-742-2500 | Contact Email: cleaningserviceyeg@gmail.com
+====================================================================
+
+1. SITE URL FOR REVIEW
+https://ads.tidyupscleaning.com
+
+2. INSTRUCTIONS FOR ACCESSING & TESTING THE APP (instructions-web-2)
+${metaReviewInstructionsWeb2}
+
+3. IS FACEBOOK LOGIN INTEGRATED ON THIS PLATFORM? (fblogin-web-1)
+Yes — Facebook Login OAuth 2.0 (v21.0) is integrated via the "Connect with Facebook" button in the "Facebook & Instagram Ads" tab.
+
+4. ACCESS CODES / TEST CREDENTIALS (accesscode-web-1)
+${metaReviewAccessCodeWeb1}
+
+5. GEOGRAPHIC RESTRICTIONS (geo-web-5)
+${metaReviewGeoWeb5}
+
+6. HOW THIS APP USES MARKETING API ACCESS TIER
+${metaReviewUsageAnswer}
+
+7. PERMISSION USAGE DETAILS (ads_management, ads_read, leads_retrieval)
+${metaReviewPermissionAnswer}
+`;
+    const blob = new Blob([docText], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "TidyUps-Meta-App-Review-Verification-Guide.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const metaCsvContent = useMemo(
@@ -711,11 +830,22 @@ fbq('track', 'Lead', { content_name: 'TidyUps Cleaning Quote', currency: 'CAD', 
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                onClick={() => setShowAppReviewHelper((v) => !v)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-pink-200 bg-pink-50 text-pink-900 hover:bg-pink-100 flex items-center gap-1.5"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#ec4899]" />
+                {showAppReviewHelper
+                  ? "Hide Meta App Review Helper"
+                  : "Meta App Review & API Test Calls"}
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setShowTokenDrawer((v) => !v)}
                 className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
               >
                 <KeyRound className="w-3.5 h-3.5" />
-                {showTokenDrawer ? "Hide Access Token" : "Access Token (Optional)"}
+                {showTokenDrawer ? "Hide Access Token" : "Access Token"}
               </button>
 
               <button
@@ -841,26 +971,25 @@ fbq('track', 'Lead', { content_name: 'TidyUps Cleaning Quote', currency: 'CAD', 
           {showTokenDrawer && (
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
               <div className="font-bold text-slate-900">
-                Optional: Meta Marketing API Access Token (For Direct Graph API Push)
+                Optional: Meta Marketing API Access Token (For Direct Graph API Push &amp; Test Calls)
               </div>
               <p className="text-slate-600">
-                Paste a Meta System User Token or Graph API Token with{" "}
-                <code className="font-mono">ads_management</code> permission to
-                push directly to{" "}
+                Paste a Meta System User Token or Graph API Explorer Token with{" "}
+                <code className="font-mono">ads_management</code> and{" "}
+                <code className="font-mono">ads_read</code> permissions to push
+                directly to{" "}
                 <code className="font-mono">
                   graph.facebook.com/v21.0/{fbConfig.adAccountId || "act_..."}
-                </code>
-                . If left blank, clicking <strong>Launch</strong> will still
-                verify and stage your complete campaign and give you a 1-click
-                Meta Ads Manager CSV import.
+                </code>{" "}
+                or complete Meta&apos;s required API test calls.
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <input
                   type="password"
                   value={metaAccessToken}
                   onChange={(e) => setMetaAccessToken(e.target.value)}
                   placeholder="Paste EAAB... Meta Graph API Access Token"
-                  className="flex-1 px-3 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                  className="flex-1 min-w-[220px] px-3 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-lg"
                 />
                 <button
                   type="button"
@@ -870,6 +999,283 @@ fbq('track', 'Lead', { content_name: 'TidyUps Cleaning Quote', currency: 'CAD', 
                 >
                   Detect Accounts
                 </button>
+                <button
+                  type="button"
+                  onClick={handleRunReviewTestCalls}
+                  disabled={isRunningTestCalls}
+                  className="px-3 py-1.5 rounded-lg brand-gradient text-white font-bold disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isRunningTestCalls ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Firing 7 API Test Calls...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="w-3.5 h-3.5" />
+                      Run Required API Test Calls
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showAppReviewHelper && (
+            <div className="p-4 rounded-xl bg-slate-950 text-slate-100 border border-slate-800 space-y-4 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#ec4899]">
+                    Meta App Review · Marketing API Access Tier Assistant
+                  </div>
+                  <div className="text-sm font-bold text-white mt-0.5">
+                    Copy-Paste Answers &amp; 1-Click Required API Test Call Runner
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRunReviewTestCalls}
+                  disabled={isRunningTestCalls}
+                  className="px-3.5 py-2 rounded-lg brand-gradient text-white font-bold flex items-center gap-1.5 disabled:opacity-50 shadow-sm"
+                >
+                  {isRunningTestCalls ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Running 7 Graph API Calls...
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="w-3.5 h-3.5" />
+                      1-Click Fire Required API Test Calls
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Token input right inside the review helper if not connected yet */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-900/90 p-2.5 rounded-lg border border-slate-800">
+                <input
+                  type="password"
+                  value={metaAccessToken}
+                  onChange={(e) => setMetaAccessToken(e.target.value)}
+                  placeholder="Paste Meta Graph API Access Token (from developers.facebook.com/tools/explorer) to fire test calls..."
+                  className="flex-1 min-w-[240px] px-2.5 py-1.5 text-xs font-mono bg-slate-950 border border-slate-700 rounded text-white"
+                />
+                <span className="text-[11px] text-slate-400">
+                  Fires <code className="font-mono text-pink-300">/me</code>,{" "}
+                  <code className="font-mono text-pink-300">/me/adaccounts</code>,{" "}
+                  <code className="font-mono text-pink-300">/campaigns</code>,{" "}
+                  <code className="font-mono text-pink-300">/adsets</code>,{" "}
+                  <code className="font-mono text-pink-300">/ads</code> &amp;{" "}
+                  <code className="font-mono text-pink-300">/insights</code>
+                </span>
+              </div>
+
+              {testCallsResult && (
+                <div className="p-3 rounded-lg bg-emerald-950/50 border border-emerald-500/40 space-y-2">
+                  <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    {testCallsResult.message}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {(testCallsResult.calls || []).map(
+                      (c: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className="px-2.5 py-1.5 rounded bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2 font-mono text-[11px]"
+                        >
+                          <span className="truncate text-slate-200">
+                            {c.endpoint}
+                          </span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded font-bold shrink-0 ${
+                              c.ok
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-amber-500/20 text-amber-300"
+                            }`}
+                          >
+                            HTTP {c.status} · {c.detail}
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-pink-300">
+                      1. &ldquo;How will this app use Marketing API Access Tier?&rdquo;
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyReviewBlock("usage", metaReviewUsageAnswer)
+                      }
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center gap-1"
+                    >
+                      {copiedReviewText === "usage" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          Copy Answer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed select-all">
+                    {metaReviewUsageAnswer}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-pink-300">
+                      2. &ldquo;Describe how your app uses this permission or feature (ads_management / ads_read)&rdquo;
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyReviewBlock(
+                          "permission",
+                          metaReviewPermissionAnswer
+                        )
+                      }
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center gap-1"
+                    >
+                      {copiedReviewText === "permission" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          Copy Answer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed whitespace-pre-line select-all">
+                    {metaReviewPermissionAnswer}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-pink-300">
+                      3. instructions-web-2 · &ldquo;Provide instructions for accessing the app so we may complete our review&rdquo;
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyReviewBlock(
+                          "instructions-web-2",
+                          metaReviewInstructionsWeb2
+                        )
+                      }
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center gap-1"
+                    >
+                      {copiedReviewText === "instructions-web-2" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          Copy Answer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed whitespace-pre-line select-all">
+                    {metaReviewInstructionsWeb2}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-pink-300">
+                      4. accesscode-web-1 · &ldquo;Access codes or test credentials&rdquo;
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyReviewBlock(
+                          "accesscode-web-1",
+                          metaReviewAccessCodeWeb1
+                        )
+                      }
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center gap-1"
+                    >
+                      {copiedReviewText === "accesscode-web-1" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          Copy Answer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed whitespace-pre-line select-all">
+                    {metaReviewAccessCodeWeb1}
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-pink-300">
+                      5. geo-web-5 · &ldquo;Geographic restrictions&rdquo; (Prevents Geo-Block Rejection)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyReviewBlock("geo-web-5", metaReviewGeoWeb5)
+                      }
+                      className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center gap-1"
+                    >
+                      {copiedReviewText === "geo-web-5" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          Copy Answer
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-slate-300 leading-relaxed whitespace-pre-line select-all">
+                    {metaReviewGeoWeb5}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                  <span className="text-slate-400">
+                    For <strong>documents-web-1 (Supporting documentation)</strong>, download &amp; attach this verification guide:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDownloadReviewDoc}
+                    className="px-3 py-1.5 rounded-lg bg-white text-slate-900 font-bold hover:bg-slate-100 flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download Reviewer Verification Guide (.txt)
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -1175,6 +1175,158 @@ app.post("/api/facebook-ads/ad-accounts", async (req, res) => {
   }
 });
 
+// Execute Required Meta Marketing API Test Calls for Meta App Review Verification
+app.post("/api/facebook-ads/run-review-test-calls", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const bearer = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+    const { accessToken = "", adAccountId = "" } = req.body || {};
+
+    const effectiveToken =
+      bearer || accessToken.trim() || connectedMetaAdsSession.accessToken || "";
+
+    if (!effectiveToken) {
+      return res.status(401).json({
+        error:
+          "Paste your Meta Graph API Access Token (from Meta Developer Tools -> Graph API Explorer or Marketing API -> Tools) or click 'Connect with Facebook' first so we can fire the live test calls for Meta App Review.",
+      });
+    }
+
+    const log: { endpoint: string; status: number; ok: boolean; detail: string }[] = [];
+
+    // 1. GET /v21.0/me
+    const meRes = await fetch(
+      `https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(
+        effectiveToken
+      )}`
+    );
+    const meData = await meRes.json();
+    log.push({
+      endpoint: "GET /v21.0/me",
+      status: meRes.status,
+      ok: meRes.ok,
+      detail: meData?.name ? `User: ${meData.name} (${meData.id})` : JSON.stringify(meData?.error?.message || meData),
+    });
+
+    // 2. GET /v21.0/me/adaccounts (ads_read / ads_management)
+    const adAccRes = await fetch(
+      `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,account_id,name,account_status,currency&access_token=${encodeURIComponent(
+        effectiveToken
+      )}`
+    );
+    const adAccData = await adAccRes.json();
+    const firstAccount =
+      adAccData?.data?.[0]?.id ||
+      (adAccountId && adAccountId.startsWith("act_") ? adAccountId : "");
+    log.push({
+      endpoint: "GET /v21.0/me/adaccounts",
+      status: adAccRes.status,
+      ok: adAccRes.ok,
+      detail: Array.isArray(adAccData?.data)
+        ? `Found ${adAccData.data.length} Ad Account(s)${firstAccount ? ` (${firstAccount})` : ""}`
+        : String(adAccData?.error?.message || "Completed"),
+    });
+
+    // 3. GET /v21.0/me/accounts (pages_show_list / pages_read_engagement)
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v21.0/me/accounts?fields=id,name&access_token=${encodeURIComponent(
+        effectiveToken
+      )}`
+    );
+    const pagesData = await pagesRes.json();
+    log.push({
+      endpoint: "GET /v21.0/me/accounts",
+      status: pagesRes.status,
+      ok: pagesRes.ok,
+      detail: Array.isArray(pagesData?.data)
+        ? `Found ${pagesData.data.length} Facebook Page(s)`
+        : String(pagesData?.error?.message || "Completed"),
+    });
+
+    if (firstAccount) {
+      // 4. GET /v21.0/{ad_account_id}/campaigns
+      const campRes = await fetch(
+        `https://graph.facebook.com/v21.0/${firstAccount}/campaigns?fields=id,name,status,objective&limit=5&access_token=${encodeURIComponent(
+          effectiveToken
+        )}`
+      );
+      const campData = await campRes.json();
+      log.push({
+        endpoint: `GET /v21.0/${firstAccount}/campaigns`,
+        status: campRes.status,
+        ok: campRes.ok,
+        detail: Array.isArray(campData?.data)
+          ? `Read ${campData.data.length} campaign(s)`
+          : String(campData?.error?.message || "Completed"),
+      });
+
+      // 5. GET /v21.0/{ad_account_id}/adsets
+      const adSetRes = await fetch(
+        `https://graph.facebook.com/v21.0/${firstAccount}/adsets?fields=id,name,status,daily_budget&limit=5&access_token=${encodeURIComponent(
+          effectiveToken
+        )}`
+      );
+      const adSetData = await adSetRes.json();
+      log.push({
+        endpoint: `GET /v21.0/${firstAccount}/adsets`,
+        status: adSetRes.status,
+        ok: adSetRes.ok,
+        detail: Array.isArray(adSetData?.data)
+          ? `Read ${adSetData.data.length} ad set(s)`
+          : String(adSetData?.error?.message || "Completed"),
+      });
+
+      // 6. GET /v21.0/{ad_account_id}/ads
+      const adsRes = await fetch(
+        `https://graph.facebook.com/v21.0/${firstAccount}/ads?fields=id,name,status&limit=5&access_token=${encodeURIComponent(
+          effectiveToken
+        )}`
+      );
+      const adsData = await adsRes.json();
+      log.push({
+        endpoint: `GET /v21.0/${firstAccount}/ads`,
+        status: adsRes.status,
+        ok: adsRes.ok,
+        detail: Array.isArray(adsData?.data)
+          ? `Read ${adsData.data.length} ad(s)`
+          : String(adsData?.error?.message || "Completed"),
+      });
+
+      // 7. GET /v21.0/{ad_account_id}/insights
+      const insightsRes = await fetch(
+        `https://graph.facebook.com/v21.0/${firstAccount}/insights?fields=impressions,clicks,spend&date_preset=last_30d&access_token=${encodeURIComponent(
+          effectiveToken
+        )}`
+      );
+      const insightsData = await insightsRes.json();
+      log.push({
+        endpoint: `GET /v21.0/${firstAccount}/insights`,
+        status: insightsRes.status,
+        ok: insightsRes.ok,
+        detail: Array.isArray(insightsData?.data)
+          ? `Queried insights (${insightsData.data.length} rows)`
+          : String(insightsData?.error?.message || "Completed"),
+      });
+    }
+
+    res.json({
+      success: true,
+      detectedAdAccountId: firstAccount || null,
+      detectedPageId: pagesData?.data?.[0]?.id || null,
+      callsExecuted: log.length,
+      log,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      error:
+        error?.message ||
+        "Failed to execute required Meta Marketing API test calls.",
+    });
+  }
+});
+
 // Execute 1-Click Facebook & Instagram Campaign + Ad Set + Lead Ads Launch
 app.post("/api/facebook-ads/launch", async (req, res) => {
   try {
