@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Wand2,
   Loader2,
@@ -26,6 +26,9 @@ import {
   Phone,
   CheckCircle2,
   ShieldCheck,
+  Rocket,
+  KeyRound,
+  AlertCircle,
 } from "lucide-react";
 import {
   RsaCampaign,
@@ -52,6 +55,7 @@ const META_CTA_LABELS: Record<MetaCtaType, string> = {
 
 export function buildMetaAdsManagerCsv(campaign: RsaCampaign): string {
   const fb = campaign.facebookConfig || DEFAULT_FACEBOOK_CONFIG;
+  const statusStr = (fb.adStatus || "PAUSED") === "ACTIVE" ? "ACTIVE" : "PAUSED";
   const headers = [
     "Campaign Name",
     "Campaign Objective",
@@ -87,14 +91,14 @@ export function buildMetaAdsManagerCsv(campaign: RsaCampaign): string {
     fb.objective,
     fb.dailyBudgetCad,
     fb.adSetName,
-    campaign.adStatus === "ENABLED" ? "ACTIVE" : "PAUSED",
+    statusStr,
     fb.locations.join("; "),
     fb.radiusKm,
     fb.ageMin,
     fb.ageMax,
     fb.interests.join("; "),
     ad.variationName,
-    campaign.adStatus === "ENABLED" ? "ACTIVE" : "PAUSED",
+    statusStr,
     ad.primaryText,
     ad.headline,
     ad.linkDescription,
@@ -112,9 +116,12 @@ export function buildMetaAdsManagerCsv(campaign: RsaCampaign): string {
 
 export function buildMetaMarketingApiPayload(campaign: RsaCampaign) {
   const fb = campaign.facebookConfig || DEFAULT_FACEBOOK_CONFIG;
+  const statusStr = (fb.adStatus || "PAUSED") === "ACTIVE" ? "ACTIVE" : "PAUSED";
   return {
     apiVersion: "v21.0",
     accountContext: {
+      adAccountId: fb.adAccountId || "act_1029384756",
+      facebookPageId: fb.facebookPageId || "TidyUpsCleaningEdmonton",
       businessName: "TidyUps Cleaning",
       phoneNumber: campaign.phoneNumber || "587-742-2500",
       bookingUrl: campaign.finalUrl,
@@ -124,7 +131,7 @@ export function buildMetaMarketingApiPayload(campaign: RsaCampaign) {
     campaign: {
       name: fb.campaignName,
       objective: fb.objective,
-      status: campaign.adStatus === "ENABLED" ? "ACTIVE" : "PAUSED",
+      status: statusStr,
       special_ad_categories: ["NONE"],
     },
     adSet: {
@@ -181,6 +188,7 @@ export function buildMetaMarketingApiPayload(campaign: RsaCampaign) {
       name: ad.variationName,
       angle: ad.angle,
       object_story_spec: {
+        page_id: fb.facebookPageId || "TidyUpsCleaningEdmonton",
         link_data: {
           message: ad.primaryText,
           link: ad.destinationUrl || campaign.finalUrl,
@@ -213,6 +221,27 @@ export const FacebookAdsStudio: React.FC<FacebookAdsStudioProps> = ({
     "facebook_feed" | "instagram_feed" | "stories_reels" | "lead_form"
   >("facebook_feed");
 
+  // Meta Account Connection & 1-Click Launch States (Matches Google Ads Launcher)
+  const [metaConnected, setMetaConnected] = useState(false);
+  const [metaUserName, setMetaUserName] = useState<string | null>(null);
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [showTokenDrawer, setShowTokenDrawer] = useState(false);
+  const [discoveredAdAccounts, setDiscoveredAdAccounts] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [discoveredPages, setDiscoveredPages] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+
+  const [launchMode, setLaunchMode] = useState<
+    "live" | "validate_only" | "simulate"
+  >("live");
+  const [showLaunchConfirmModal, setShowLaunchConfirmModal] = useState(false);
+  const [isLaunchingMeta, setIsLaunchingMeta] = useState(false);
+  const [metaLaunchResult, setMetaLaunchResult] = useState<any | null>(null);
+  const [metaLaunchError, setMetaLaunchError] = useState<string | null>(null);
+
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [copiedJson, setCopiedJson] = useState(false);
@@ -240,6 +269,137 @@ export const FacebookAdsStudio: React.FC<FacebookAdsStudioProps> = ({
       idx === selectedAdIndex ? { ...ad, ...updates } : ad
     );
     updateFbConfig({ ads: nextAds });
+  };
+
+  // Check Meta OAuth connection status & listen for popup callback
+  const checkMetaStatus = async () => {
+    try {
+      const res = await fetch("/api/facebook-ads/status");
+      if (res.ok) {
+        const data = await res.json();
+        setMetaConnected(Boolean(data.connected));
+        if (data.userName) setMetaUserName(data.userName);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    checkMetaStatus();
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "META_OAUTH_SUCCESS") {
+        checkMetaStatus();
+        handleDetectMetaAccounts();
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  const handleConnectFacebookPopup = async () => {
+    setMetaLaunchError(null);
+    try {
+      const res = await fetch("/api/facebook-ads/auth-url");
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setShowTokenDrawer(true);
+        setMetaLaunchError(
+          data.error ||
+            "To use 1-click Facebook OAuth popup, add META_APP_ID & META_APP_SECRET in Settings, or paste a Meta Access Token below."
+        );
+        return;
+      }
+      window.open(data.url, "meta_oauth_popup", "width=620,height=720");
+    } catch (err: any) {
+      setShowTokenDrawer(true);
+      setMetaLaunchError(
+        err?.message || "Could not open Facebook OAuth dialog."
+      );
+    }
+  };
+
+  const handleDetectMetaAccounts = async () => {
+    setIsLoadingAccounts(true);
+    setMetaLaunchError(null);
+    try {
+      const res = await fetch("/api/facebook-ads/ad-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: metaAccessToken }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(
+          data.error || "Could not fetch Meta Ad Accounts."
+        );
+      }
+      const accs = (data.adAccounts || []).map((a: any) => ({
+        id: a.id || `act_${a.account_id}`,
+        name: a.name || a.id,
+      }));
+      const pgs = (data.pages || []).map((p: any) => ({
+        id: p.id,
+        name: p.name || p.id,
+      }));
+      setDiscoveredAdAccounts(accs);
+      setDiscoveredPages(pgs);
+      if (accs.length > 0) {
+        updateFbConfig({
+          adAccountId: accs[0].id,
+          ...(pgs.length > 0 ? { facebookPageId: pgs[0].id } : {}),
+        });
+      }
+    } catch (err: any) {
+      setShowTokenDrawer(true);
+      setMetaLaunchError(err?.message || "Could not list Meta Ad Accounts.");
+    } finally {
+      setIsLoadingAccounts(false);
+    }
+  };
+
+  const metaCsvContent = useMemo(
+    () => buildMetaAdsManagerCsv(campaign),
+    [campaign]
+  );
+
+  const metaApiPayload = useMemo(
+    () => buildMetaMarketingApiPayload(campaign),
+    [campaign]
+  );
+
+  const handleExecuteMetaLaunch = async () => {
+    setShowLaunchConfirmModal(false);
+    setIsLaunchingMeta(true);
+    setMetaLaunchError(null);
+    setMetaLaunchResult(null);
+
+    try {
+      const res = await fetch("/api/facebook-ads/launch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adAccountId: fbConfig.adAccountId || "act_1029384756",
+          facebookPageId: fbConfig.facebookPageId || "TidyUpsCleaningEdmonton",
+          accessToken: metaAccessToken,
+          mode: launchMode,
+          dailyBudgetCad: fbConfig.dailyBudgetCad,
+          adStatus: fbConfig.adStatus || "PAUSED",
+          metaPayload: metaApiPayload,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Meta Ads launch failed.");
+      }
+      setMetaLaunchResult(data);
+    } catch (err: any) {
+      setMetaLaunchError(
+        err?.message || "Failed to execute Meta Ads launch pipeline."
+      );
+    } finally {
+      setIsLaunchingMeta(false);
+    }
   };
 
   // Sync from Google RSA Headlines, 5 Descriptions, Phone & Location
@@ -402,16 +562,6 @@ export const FacebookAdsStudio: React.FC<FacebookAdsStudioProps> = ({
     }
   };
 
-  const metaCsvContent = useMemo(
-    () => buildMetaAdsManagerCsv(campaign),
-    [campaign]
-  );
-
-  const metaApiPayload = useMemo(
-    () => buildMetaMarketingApiPayload(campaign),
-    [campaign]
-  );
-
   const handleDownloadMetaCsv = () => {
     const blob = new Blob([metaCsvContent], {
       type: "text/csv;charset=utf-8;",
@@ -476,16 +626,14 @@ fbq('track', 'Lead', { content_name: 'TidyUps Cleaning Quote', currency: 'CAD', 
               </span>
             </div>
             <h2 className="text-lg font-extrabold text-white mt-1">
-              Build High-Converting Facebook Feed, Instagram &amp; Story/Reel Ads for{" "}
-              {campaign.location || "Edmonton"}
+              Connect Meta Account, Set Budget &amp; Launch Facebook + Instagram Lead Ads
             </h2>
             <p className="text-xs text-[#a899b3] max-w-3xl">
-              Generate scroll-stopping social copy, configure your{" "}
-              <strong>{campaign.location || "Edmonton"} +{fbConfig.radiusKm}km</strong>{" "}
-              local radius targeting and <strong>Meta Instant Lead Form</strong>{" "}
-              (pre-linked to <code className="font-mono">/privacy</code>),
-              attach AI interior cleaning photos, and export directly to{" "}
-              <strong>Meta Ads Manager CSV</strong> or your{" "}
+              Works just like your Google Ads Launcher: connect your{" "}
+              <strong>Facebook / Meta Ad Account</strong>, set your daily CAD
+              budget, customize your 3 Lead &amp; Booking Ads (pre-linked to{" "}
+              <code className="font-mono">/privacy</code>), and launch directly
+              from the app or export to your{" "}
               <strong>6-Tab Color-Coded Google Sheet</strong>.
             </p>
           </div>
@@ -544,6 +692,302 @@ fbq('track', 'Lead', { content_name: 'TidyUps Cleaning Quote', currency: 'CAD', 
             {aiError}
           </div>
         )}
+      </div>
+
+      {/* 1-Click Connect Facebook Account, Set Budget & Launch Lead Ads Row (Just Like Google Ads Launcher) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left 7 cols: Step 1 Connect Facebook / Meta Account & Ad Account ID */}
+        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-slate-100">
+            <div>
+              <div className="text-xs font-semibold text-[#ec4899]">
+                Step 1 · Facebook &amp; Instagram Business Account Connection
+              </div>
+              <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                Connect Your Meta Ad Account &amp; Facebook Page
+              </h3>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowTokenDrawer((v) => !v)}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                {showTokenDrawer ? "Hide Access Token" : "Access Token (Optional)"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConnectFacebookPopup}
+                className="px-4 py-2 rounded-lg bg-[#1877F2] hover:bg-[#166FE5] text-white text-xs font-bold flex items-center gap-2 shadow-2xs transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {metaConnected
+                  ? `Connected: ${metaUserName || "Meta Business"}`
+                  : "Connect with Facebook"}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold text-slate-700">
+                  Meta Ad Account ID
+                </label>
+                {(metaConnected || metaAccessToken) && (
+                  <button
+                    type="button"
+                    onClick={handleDetectMetaAccounts}
+                    disabled={isLoadingAccounts}
+                    className="text-[11px] text-[#ec4899] hover:underline font-semibold inline-flex items-center gap-1"
+                  >
+                    <RefreshCw
+                      className={`w-3 h-3 ${
+                        isLoadingAccounts ? "animate-spin" : ""
+                      }`}
+                    />
+                    Auto-Detect
+                  </button>
+                )}
+              </div>
+              <input
+                type="text"
+                value={fbConfig.adAccountId || "act_1029384756"}
+                onChange={(e) =>
+                  updateFbConfig({ adAccountId: e.target.value })
+                }
+                placeholder="act_1234567890"
+                className="w-full px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg"
+              />
+              {discoveredAdAccounts.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {discoveredAdAccounts.map((acc) => (
+                    <button
+                      key={acc.id}
+                      type="button"
+                      onClick={() => updateFbConfig({ adAccountId: acc.id })}
+                      className="px-2 py-0.5 text-[10px] font-mono rounded bg-pink-50 text-pink-900 border border-pink-200"
+                    >
+                      {acc.name} ({acc.id})
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Facebook Page ID / Handle
+              </label>
+              <input
+                type="text"
+                value={fbConfig.facebookPageId || "TidyUpsCleaningEdmonton"}
+                onChange={(e) =>
+                  updateFbConfig({ facebookPageId: e.target.value })
+                }
+                placeholder="TidyUpsCleaningEdmonton"
+                className="w-full px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg"
+              />
+              {discoveredPages.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {discoveredPages.map((pg) => (
+                    <button
+                      key={pg.id}
+                      type="button"
+                      onClick={() => updateFbConfig({ facebookPageId: pg.id })}
+                      className="px-2 py-0.5 text-[10px] font-mono rounded bg-purple-50 text-purple-900 border border-purple-200"
+                    >
+                      {pg.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Initial Launch Status
+              </label>
+              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => updateFbConfig({ adStatus: "PAUSED" })}
+                  className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-colors ${
+                    (fbConfig.adStatus || "PAUSED") === "PAUSED"
+                      ? "bg-white text-slate-900 shadow-xs"
+                      : "text-slate-600"
+                  }`}
+                >
+                  PAUSED (Review)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateFbConfig({ adStatus: "ACTIVE" })}
+                  className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded-md transition-colors ${
+                    fbConfig.adStatus === "ACTIVE"
+                      ? "bg-white text-emerald-700 shadow-xs"
+                      : "text-slate-600"
+                  }`}
+                >
+                  ACTIVE (Live)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {showTokenDrawer && (
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
+              <div className="font-bold text-slate-900">
+                Optional: Meta Marketing API Access Token (For Direct Graph API Push)
+              </div>
+              <p className="text-slate-600">
+                Paste a Meta System User Token or Graph API Token with{" "}
+                <code className="font-mono">ads_management</code> permission to
+                push directly to{" "}
+                <code className="font-mono">
+                  graph.facebook.com/v21.0/{fbConfig.adAccountId || "act_..."}
+                </code>
+                . If left blank, clicking <strong>Launch</strong> will still
+                verify and stage your complete campaign and give you a 1-click
+                Meta Ads Manager CSV import.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="password"
+                  value={metaAccessToken}
+                  onChange={(e) => setMetaAccessToken(e.target.value)}
+                  placeholder="Paste EAAB... Meta Graph API Access Token"
+                  className="flex-1 px-3 py-1.5 text-xs font-mono bg-white border border-slate-300 rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={handleDetectMetaAccounts}
+                  disabled={!metaAccessToken.trim() || isLoadingAccounts}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold disabled:opacity-50"
+                >
+                  Detect Accounts
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right 5 cols: Step 2 Set Budget & 1-Click Launch to Facebook & Instagram */}
+        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <div className="text-xs font-semibold text-[#ec4899]">
+                Step 2 · 1-Click Meta Lead Campaign Launcher
+              </div>
+              <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                Ready to Launch ({fbConfig.ads.length} FB &amp; IG Lead Ads)
+              </h3>
+            </div>
+            <span className="text-xs font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-md">
+              ${fbConfig.dailyBudgetCad}/day CAD
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-lg">
+            {(
+              [
+                { id: "live", label: "Live Meta Account" },
+                { id: "validate_only", label: "API Validate" },
+                { id: "simulate", label: "Sandbox Test" },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setLaunchMode(m.id)}
+                className={`py-1.5 px-2 text-xs font-semibold rounded-md transition-colors ${
+                  launchMode === m.id
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-600"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {metaLaunchError && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <span>{metaLaunchError}</span>
+            </div>
+          )}
+
+          {metaLaunchResult && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2 text-xs text-emerald-950">
+              <div className="flex items-center gap-2 font-bold text-emerald-900">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  {metaLaunchResult.mode === "live"
+                    ? "Live Facebook & Instagram Lead Campaign Created!"
+                    : "Meta Lead Campaign Verified & Staged for Launch!"}
+                </span>
+              </div>
+              {metaLaunchResult.apiNotice && (
+                <p className="text-[11px] bg-white/80 p-2 rounded border border-emerald-200 text-emerald-900">
+                  {metaLaunchResult.apiNotice}
+                </p>
+              )}
+              {metaLaunchResult.receipt && (
+                <div className="font-mono text-[11px] space-y-0.5 text-emerald-900">
+                  <div>
+                    Ad Account: {metaLaunchResult.receipt.adAccountResource} ($
+                    {metaLaunchResult.receipt.dailyBudgetCad} CAD/day)
+                  </div>
+                  <div>
+                    Campaign ID: {metaLaunchResult.receipt.campaignId} (
+                    {metaLaunchResult.receipt.campaignStatus})
+                  </div>
+                  <div>
+                    Instant Lead Form ID: {metaLaunchResult.receipt.leadFormId}{" "}
+                    (Linked to /privacy)
+                  </div>
+                  <div>
+                    Ads Created: {metaLaunchResult.receipt.adsCreated} (FB Feed,
+                    IG Feed, Stories &amp; Reels)
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={() => setShowLaunchConfirmModal(true)}
+              disabled={isLaunchingMeta}
+              className="flex-1 py-2.5 px-4 rounded-full brand-gradient text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-60"
+            >
+              {isLaunchingMeta ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Launching Meta Lead Ads...
+                </>
+              ) : (
+                <>
+                  <Rocket className="w-4 h-4" />
+                  Launch FB &amp; IG Lead Campaign ({fbConfig.ads.length} Ads)
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadMetaCsv}
+              className="py-2.5 px-3.5 rounded-full border border-slate-200 hover:bg-slate-50 text-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Main 2-Column Workspace: Left (7 cols) Editor + Targeting | Right (5 cols) Live Feed/Story/Lead Form Simulator */}
@@ -1574,6 +2018,58 @@ fbq('track', 'Lead', { content_name: 'TidyUps Cleaning Quote', currency: 'CAD', 
           </pre>
         </div>
       </div>
+
+      {/* Confirmation Modal for Launching Facebook & Instagram Lead Campaign */}
+      {showLaunchConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl">
+            <h3 className="text-base font-bold text-slate-900">
+              Confirm Facebook &amp; Instagram Lead Campaign Launch
+            </h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Review your Meta Lead Ads configuration for{" "}
+              <strong>TidyUps Cleaning</strong> in mode{" "}
+              <strong className="uppercase">{launchMode}</strong>:
+            </p>
+            <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5 text-xs font-mono text-slate-800">
+              <div>Ad Account: {fbConfig.adAccountId || "act_1029384756"}</div>
+              <div>
+                Facebook Page:{" "}
+                {fbConfig.facebookPageId || "TidyUpsCleaningEdmonton"}
+              </div>
+              <div>Campaign: {fbConfig.campaignName}</div>
+              <div>
+                Daily Budget: ${fbConfig.dailyBudgetCad.toFixed(2)} CAD/day
+              </div>
+              <div>
+                Geo Radius: {fbConfig.locations.join(", ")} (+
+                {fbConfig.radiusKm}km)
+              </div>
+              <div>Lead Ads: {fbConfig.ads.length} Variations</div>
+              <div>
+                Privacy Policy: {fbConfig.privacyPolicyUrl}
+              </div>
+              <div>Initial Status: {fbConfig.adStatus || "PAUSED"}</div>
+            </div>
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLaunchConfirmModal(false)}
+                className="px-4 py-2 text-xs font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteMetaLaunch}
+                className="px-4 py-2 text-xs font-bold rounded-full brand-gradient text-white shadow-sm"
+              >
+                Confirm &amp; Launch Meta Campaign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -131,6 +131,9 @@ export interface FacebookAdCreative {
 }
 
 export interface FacebookCampaignConfig {
+  adAccountId?: string;
+  facebookPageId?: string;
+  adStatus?: "ACTIVE" | "PAUSED";
   campaignName: string;
   adSetName: string;
   objective: "OUTCOME_LEADS" | "OUTCOME_TRAFFIC" | "OUTCOME_SALES";
@@ -149,6 +152,9 @@ export interface FacebookCampaignConfig {
 }
 
 export const DEFAULT_FACEBOOK_CONFIG: FacebookCampaignConfig = {
+  adAccountId: "act_1029384756",
+  facebookPageId: "TidyUpsCleaningEdmonton",
+  adStatus: "PAUSED",
   campaignName: "Meta Leads - TidyUps Edmonton - Move-Out & Deep Cleaning",
   adSetName: "Edmonton & South Edmonton +25km | Homeowners & Movers (23-65+)",
   objective: "OUTCOME_LEADS",
