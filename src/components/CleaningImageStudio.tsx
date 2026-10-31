@@ -176,6 +176,15 @@ export const CleaningImageStudio: React.FC<CleaningImageStudioProps> = ({
     onUpdateCampaignMeta({
       generatedImages: updatedList,
       attachedImageUrl: target.imageUrl,
+      facebookConfig: campaign.facebookConfig
+        ? {
+            ...campaign.facebookConfig,
+            ads: campaign.facebookConfig.ads.map((ad) => ({
+              ...ad,
+              imageUrl: target.imageUrl,
+            })),
+          }
+        : undefined,
     });
   };
 

@@ -437,6 +437,102 @@ STRICT RULE: Every ${assetType} MUST be ${maxChars} characters or fewer (includi
   }
 });
 
+// Endpoint 4b: AI Facebook & Instagram (Meta) Ad Creative & Audience Generator
+app.post("/api/facebook-ads/generate", async (req, res) => {
+  try {
+    const {
+      serviceType = "Move-Out & Deep Cleaning",
+      location = "Edmonton & South Edmonton",
+      phoneNumber = "587-742-2500",
+      finalUrl = "https://app.tidyupscleaning.com/booking",
+      promoOffer = "Instant Online Quote or Call 587-742-2500 Today",
+      targetKeywords = [],
+      descriptions = [],
+    } = req.body || {};
+
+    const prompt = `You are a Senior Meta (Facebook & Instagram) Direct-Response Ad Strategist for "TidyUps Cleaning" (${location}).
+Booking URL: ${finalUrl}
+Phone Number: ${phoneNumber}
+Service Focus: ${serviceType}
+Promo / Offer: ${promoOffer}
+Existing Search Keywords: ${Array.isArray(targetKeywords) ? targetKeywords.slice(0, 12).join(", ") : ""}
+Existing Short Descriptions: ${Array.isArray(descriptions) ? descriptions.join(" | ") : ""}
+
+Generate 3 high-converting Facebook & Instagram Ad variations tailored for ${location} homeowners, renters, and landlords:
+1. Variation 1: Move-Out & End of Tenancy Inspection Clean angle (focus on passing final inspection, inside oven/fridge/cabinets, baseboards, stress-free move).
+2. Variation 2: Full Home Deep Cleaning Reset angle (focus on built-up grime, kitchen & bathroom deep scrub, before/after fresh start feeling).
+3. Variation 3: Direct Call / Fast Quote Urgency angle (focus on calling ${phoneNumber} or booking in 60 seconds at ${finalUrl}).
+
+STRICT RULES FOR EACH AD:
+- primaryText: Engaging 3-5 line social ad copy with clean checkmarks/bullet points, local ${location} hook, phone number ${phoneNumber}, and booking link.
+- headline: Bold Meta Feed headline, STRICTLY 40 characters or fewer (<= 40 chars).
+- linkDescription: News Feed link description, STRICTLY 30 characters or fewer (<= 30 chars).
+- ctaType: One of "BOOK_NOW", "GET_QUOTE", "CALL_NOW", "SEND_MESSAGE", "LEARN_MORE".
+- promoBadge: Short 2-4 word overlay badge (<= 24 chars), e.g., "100% Inspection Ready" or "Book in 60 Seconds".`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: prompt,
+      config: {
+        systemInstruction:
+          "You create high-converting Facebook and Instagram Lead & Booking ads for local home cleaning businesses. Headlines must be <= 40 characters and Link Descriptions <= 30 characters.",
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            campaignName: { type: Type.STRING },
+            adSetName: { type: Type.STRING },
+            suggestedInterests: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            ads: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  variationName: { type: Type.STRING },
+                  angle: { type: Type.STRING },
+                  primaryText: { type: Type.STRING },
+                  headline: { type: Type.STRING },
+                  linkDescription: { type: Type.STRING },
+                  ctaType: { type: Type.STRING },
+                  promoBadge: { type: Type.STRING },
+                },
+                required: [
+                  "variationName",
+                  "angle",
+                  "primaryText",
+                  "headline",
+                  "linkDescription",
+                  "ctaType",
+                  "promoBadge",
+                ],
+              },
+            },
+          },
+          required: ["campaignName", "adSetName", "suggestedInterests", "ads"],
+        },
+      },
+    });
+
+    const rawText = response.text;
+    if (!rawText) {
+      throw new Error("Empty response from Gemini model.");
+    }
+    const parsed = JSON.parse(rawText.trim());
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("Error in /api/facebook-ads/generate:", error);
+    res.status(500).json({
+      error:
+        error?.message ||
+        "Failed to generate Facebook & Instagram ad creatives.",
+    });
+  }
+});
+
 // Endpoint 5: AI Cleaning & Home Interior Image Generator (gemini-3.1-flash-lite-image)
 app.post("/api/images/generate", async (req, res) => {
   try {
@@ -1272,12 +1368,13 @@ app.post("/api/sheets/create-master-sheet", async (req, res) => {
       mainFolder.folderId
     );
 
-    // 2. Create the spreadsheet with 5 color-coded tabs
+    // 2. Create the spreadsheet with 6 color-coded tabs (Google Ads + Facebook & Instagram Ads)
     const tab1Title = "1. Campaign & Budget";
     const tab2Title = "2. RSA Headlines & 5 Descriptions";
     const tab3Title = "3. Positive Keywords (Edmonton)";
     const tab4Title = "4. Negative Keywords Shield";
     const tab5Title = "5. Google Ads Editor Bulk Row";
+    const tab6Title = "6. Facebook & Instagram Ads";
 
     const createSheetRes = await fetch(
       "https://sheets.googleapis.com/v4/spreadsheets",
@@ -1330,6 +1427,14 @@ app.post("/api/sheets/create-master-sheet", async (req, res) => {
                 title: tab5Title,
                 gridProperties: { frozenRowCount: 1, rowCount: 20, columnCount: 48 },
                 tabColor: { red: 0.85, green: 0.47, blue: 0.02 }, // Amber Gold
+              },
+            },
+            {
+              properties: {
+                sheetId: 106,
+                title: tab6Title,
+                gridProperties: { frozenRowCount: 2, rowCount: 40, columnCount: 9 },
+                tabColor: { red: 0.93, green: 0.28, blue: 0.6 }, // Vibrant Pink-Purple (Meta Ads)
               },
             },
           ],
@@ -1621,6 +1726,54 @@ app.post("/api/sheets/create-master-sheet", async (req, res) => {
 
     const tab5Values = [bulkHeaders, bulkRow];
 
+    // Tab 6 Rows: Facebook & Instagram (Meta) Ads Studio
+    const fbConfig = campaign.facebookConfig || {};
+    const fbAds: any[] = Array.isArray(fbConfig.ads) ? fbConfig.ads : [];
+    const tab6Values: any[][] = [
+      [
+        "TIDYUPS CLEANING — FACEBOOK & INSTAGRAM (META) ADS STUDIO & LEAD FORM CONFIG",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ],
+      [
+        "Ad Variation",
+        "Angle / Hook",
+        "Headline (<=40c)",
+        "Link Description (<=30c)",
+        "CTA Button",
+        "Promo Badge",
+        "Primary Text (Feed / Story / Reel)",
+        "Destination URL & Privacy URL",
+      ],
+      ...fbAds.map((ad: any, idx: number) => [
+        ad.variationName || `Meta Ad #${idx + 1}`,
+        ad.angle || "Local Cleaning Offer",
+        ad.headline || "Edmonton Move-Out & Deep Clean",
+        ad.linkDescription || `Call ${campaign.phoneNumber || "587-742-2500"}`,
+        ad.ctaType || "BOOK_NOW",
+        ad.promoBadge || "100% Satisfaction Guaranteed",
+        ad.primaryText || "",
+        `${ad.destinationUrl || campaign.finalUrl} | Privacy: ${
+          fbConfig.privacyPolicyUrl || "https://ads.tidyupscleaning.com/privacy"
+        }`,
+      ]),
+      [
+        "META TARGETING SUMMARY",
+        `Budget: $${fbConfig.dailyBudgetCad || 20} CAD/day`,
+        `Geo: ${(fbConfig.locations || [campaign.location || "Edmonton (+25km)"]).join(", ")}`,
+        `Age: ${fbConfig.ageMin || 23}-${fbConfig.ageMax || 65}+`,
+        `Objective: ${fbConfig.objective || "OUTCOME_LEADS"}`,
+        `Interests: ${(fbConfig.interests || ["Moving", "Home Improvement", "Real Estate"]).join(", ")}`,
+        `Lead Form Fields: ${(fbConfig.leadFormQuestions || ["Full Name", "Phone", "Email", "Service Type"]).join(" | ")}`,
+        `Privacy Policy: ${fbConfig.privacyPolicyUrl || "https://ads.tidyupscleaning.com/privacy"}`,
+      ],
+    ];
+
     // 5. Write all values using spreadsheets.values.batchUpdate
     await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`,
@@ -1638,6 +1791,7 @@ app.post("/api/sheets/create-master-sheet", async (req, res) => {
             { range: `'${tab3Title}'!A1`, values: tab3Values },
             { range: `'${tab4Title}'!A1`, values: tab4Values },
             { range: `'${tab5Title}'!A1`, values: tab5Values },
+            { range: `'${tab6Title}'!A1`, values: tab6Values },
           ],
         }),
       }
@@ -1771,6 +1925,15 @@ app.post("/api/sheets/create-master-sheet", async (req, res) => {
         { red: 0.75, green: 0.07, blue: 0.24 },
         { red: 1.0, green: 0.95, blue: 0.96 }
       ),
+      // Tab 6: Vibrant Magenta-Purple theme (Facebook & Instagram Ads)
+      ...makeHeaderStyleRequests(
+        106,
+        8,
+        tab6Values.length,
+        { red: 0.55, green: 0.12, blue: 0.48 },
+        { red: 0.85, green: 0.22, blue: 0.55 },
+        { red: 0.99, green: 0.95, blue: 0.98 }
+      ),
     ];
 
     await fetch(
@@ -1803,6 +1966,7 @@ app.post("/api/sheets/create-master-sheet", async (req, res) => {
         tab3Title,
         tab4Title,
         tab5Title,
+        tab6Title,
       ],
     });
   } catch (error: any) {

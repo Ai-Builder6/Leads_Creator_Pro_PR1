@@ -31,6 +31,7 @@ import { SavedCampaignsView } from "./components/SavedCampaignsView";
 import { PasteAndSortStudio } from "./components/PasteAndSortStudio";
 import { CleaningImageStudio } from "./components/CleaningImageStudio";
 import { GoogleAdsLauncherView } from "./components/GoogleAdsLauncherView";
+import { FacebookAdsStudio } from "./components/FacebookAdsStudio";
 import {
   PublicSitePages,
   PublicPageRoute,
@@ -59,7 +60,7 @@ function detectPublicRoute(pathname: string): PublicPageRoute | null {
 
 export default function App() {
   const [activeView, setActiveView] = useState<
-    "paste_sort" | "builder" | "images" | "launch" | "api"
+    "paste_sort" | "builder" | "facebook" | "images" | "launch" | "api"
   >("launch");
 
   const [publicPage, setPublicPage] = useState<PublicPageRoute | null>(() =>
@@ -458,7 +459,21 @@ export default function App() {
                   : ""
               }`}
             >
-              Ad Builder & SERP
+              Google RSA
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigateToPublicPage(null);
+                setActiveView("facebook");
+              }}
+              className={`hover:text-white transition-colors whitespace-nowrap shrink-0 pb-0.5 ${
+                !publicPage && activeView === "facebook"
+                  ? "text-white border-b-2 border-[#ec4899] font-semibold"
+                  : ""
+              }`}
+            >
+              Facebook & IG Ads
             </button>
             <button
               type="button"
@@ -481,26 +496,12 @@ export default function App() {
                 setActiveView("launch");
               }}
               className={`hover:text-white transition-colors whitespace-nowrap shrink-0 pb-0.5 ${
-                !publicPage && activeView === "launch"
+                !publicPage && (activeView === "launch" || activeView === "api")
                   ? "text-white border-b-2 border-[#ec4899] font-semibold"
                   : ""
               }`}
             >
-              Budget & Launch
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigateToPublicPage(null);
-                setActiveView("api");
-              }}
-              className={`hover:text-white transition-colors whitespace-nowrap shrink-0 pb-0.5 ${
-                !publicPage && activeView === "api"
-                  ? "text-white border-b-2 border-[#ec4899] font-semibold"
-                  : ""
-              }`}
-            >
-              Saved & Export ({savedCampaigns.length})
+              Launch & Sheets
             </button>
           </nav>
 
@@ -533,9 +534,10 @@ export default function App() {
         {(
           [
             { id: "paste_sort", label: "Paste & Sort" },
-            { id: "builder", label: "Ad Builder" },
+            { id: "builder", label: "Google RSA" },
+            { id: "facebook", label: "Facebook & IG Ads" },
             { id: "images", label: "AI Images" },
-            { id: "launch", label: "Budget & Launch" },
+            { id: "launch", label: "Launch & Sheets" },
             { id: "api", label: `Saved (${savedCampaigns.length})` },
           ] as const
         ).map((tab) => (
@@ -669,7 +671,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Quick Action Strip for Image Generator & Budget Launch */}
+          {/* Quick Action Strip for Image Generator, Facebook Ads & Budget Launch */}
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 font-mono tabular-nums">
               <span>{campaign.headlines.length}/15 Headlines (≤30c)</span>
@@ -679,24 +681,42 @@ export default function App() {
               <span>{campaign.targetKeywords.length} Positive KW</span>
               <span aria-hidden="true">·</span>
               <span>{campaign.negativeKeywords?.length || 0} Negative KW</span>
+              <span aria-hidden="true">·</span>
+              <span>
+                {campaign.facebookConfig?.ads?.length || 3} FB &amp; IG Ads
+              </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveView("facebook")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-colors whitespace-nowrap shrink-0"
+              >
+                Facebook &amp; IG Ads Studio
+              </button>
               <button
                 type="button"
                 onClick={() => setActiveView("images")}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
               >
                 <ImageIcon className="w-3.5 h-3.5 text-teal-700" />
-                Generate Home Cleaning Images
+                AI Cleaning Image Studio
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView("api")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-800 hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
+              >
+                Saved &amp; Export ({savedCampaigns.length})
               </button>
               <button
                 type="button"
                 onClick={() => setActiveView("launch")}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full brand-gradient text-white transition-all whitespace-nowrap shrink-0"
               >
                 <Rocket className="w-3.5 h-3.5" />
-                Set Budget & Launch to Google Ads
+                Set Budget &amp; Launch
               </button>
             </div>
           </div>
@@ -1484,6 +1504,16 @@ export default function App() {
               />
             </div>
           </div>
+        )}
+
+        {/* View 1b: Facebook & Instagram (Meta) Ads Studio */}
+        {activeView === "facebook" && (
+          <FacebookAdsStudio
+            campaign={campaign}
+            onUpdateCampaignMeta={updateCampaignMeta}
+            onOpenImageStudio={() => setActiveView("images")}
+            onOpenLaunchTab={() => setActiveView("launch")}
+          />
         )}
 
         {/* View 2: AI Home Interior & Cleaning Image Studio */}

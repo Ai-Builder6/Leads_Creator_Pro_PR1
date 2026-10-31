@@ -109,6 +109,120 @@ export const CLEANING_IMAGE_SCENE_PRESETS: {
   },
 ];
 
+export type MetaCtaType =
+  | "BOOK_NOW"
+  | "GET_QUOTE"
+  | "CALL_NOW"
+  | "SEND_MESSAGE"
+  | "LEARN_MORE";
+
+export interface FacebookAdCreative {
+  id: string;
+  variationName: string;
+  angle: string;
+  primaryText: string;
+  headline: string; // Recommended <= 40 chars
+  linkDescription: string; // Recommended <= 30 chars
+  ctaType: MetaCtaType;
+  destinationUrl: string;
+  displayLink: string;
+  promoBadge: string;
+  imageUrl?: string;
+}
+
+export interface FacebookCampaignConfig {
+  campaignName: string;
+  adSetName: string;
+  objective: "OUTCOME_LEADS" | "OUTCOME_TRAFFIC" | "OUTCOME_SALES";
+  dailyBudgetCad: number;
+  radiusKm: number;
+  ageMin: number;
+  ageMax: number;
+  locations: string[];
+  interests: string[];
+  placements: ("facebook_feed" | "instagram_feed" | "stories_reels" | "marketplace")[];
+  conversionLocation: "WEBSITE_AND_INSTANT_FORM" | "WEBSITE" | "INSTANT_FORM" | "CALLS";
+  metaPixelId: string;
+  privacyPolicyUrl: string;
+  leadFormQuestions: string[];
+  ads: FacebookAdCreative[];
+}
+
+export const DEFAULT_FACEBOOK_CONFIG: FacebookCampaignConfig = {
+  campaignName: "Meta Leads - TidyUps Edmonton - Move-Out & Deep Cleaning",
+  adSetName: "Edmonton & South Edmonton +25km | Homeowners & Movers (23-65+)",
+  objective: "OUTCOME_LEADS",
+  dailyBudgetCad: 20,
+  radiusKm: 25,
+  ageMin: 23,
+  ageMax: 65,
+  locations: [
+    "Edmonton, AB (+25 km)",
+    "South Edmonton, AB",
+    "St. Albert, AB",
+    "Sherwood Park, AB",
+  ],
+  interests: [
+    "Moving / Relocation",
+    "Apartment / Condo Renters",
+    "Home Improvement & Renovation",
+    "Real Estate & Property Management",
+    "Busy Parents & Professionals",
+  ],
+  placements: ["facebook_feed", "instagram_feed", "stories_reels", "marketplace"],
+  conversionLocation: "WEBSITE_AND_INSTANT_FORM",
+  metaPixelId: "TIDYUPS-META-PIXEL",
+  privacyPolicyUrl: "https://ads.tidyupscleaning.com/privacy",
+  leadFormQuestions: [
+    "Full Name",
+    "Phone Number (for fast SMS/call quote)",
+    "Email Address",
+    "What type of cleaning do you need? (Move-Out / Deep Clean / Move-In)",
+    "How many bedrooms & bathrooms?",
+  ],
+  ads: [
+    {
+      id: "fb-ad-1",
+      variationName: "Ad 1: Move-Out & End of Tenancy Inspection Clean",
+      angle: "Landlord Checklist & Stress-Free Moving",
+      primaryText:
+        "Moving out in Edmonton? Leave the scrubbing to TidyUps Cleaning ✨\n\nWe handle the full landlord & end-of-tenancy inspection checklist so you can focus on your move:\n✅ Inside appliances, cabinets & drawers\n✅ Hand-wiped baseboards, doors & window tracks\n✅ Sanitized bathrooms, tubs, showers & floors\n✅ Upfront flat-rate quotes & 24-hour satisfaction guarantee\n\n📲 Book online in 60 seconds at app.tidyupscleaning.com/booking or call 587-742-2500 today!",
+      headline: "Edmonton Move-Out Cleaning Pros",
+      linkDescription: "Book in 60s or Call 587-742-2500",
+      ctaType: "GET_QUOTE",
+      destinationUrl: "https://app.tidyupscleaning.com/booking",
+      displayLink: "app.tidyupscleaning.com",
+      promoBadge: "100% Inspection Ready",
+    },
+    {
+      id: "fb-ad-2",
+      variationName: "Ad 2: Full Home Deep Cleaning Reset",
+      angle: "Before/After Deep Grime & Baseboard Reset",
+      primaryText:
+        "Built-up dirt, kitchen grease, or bathroom grime? Give your Edmonton home a true top-to-bottom fresh start 🏡✨\n\nOur Edmonton Deep Cleaning crew tackles the details regular cleaning misses:\n✨ Baseboards, trim, light switches & door frames\n✨ Deep kitchen & bathroom buildup removal\n✨ Eco-friendly supplies & background-checked pros\n\nTap 'Book Now' for an instant online quote or call TidyUps at 587-742-2500!",
+      headline: "Give Your Home a Deep Clean Reset",
+      linkDescription: "Edmonton & South Edmonton",
+      ctaType: "BOOK_NOW",
+      destinationUrl: "https://app.tidyupscleaning.com/booking",
+      displayLink: "app.tidyupscleaning.com",
+      promoBadge: "Top-to-Bottom Deep Clean",
+    },
+    {
+      id: "fb-ad-3",
+      variationName: "Ad 3: Direct Call / Instant Quote (Fastest Response)",
+      angle: "Urgent Same-Week Move-Out & Deep Clean",
+      primaryText:
+        "Need move-out or deep house cleaning in Edmonton & South Edmonton this week? We have openings ready! 🚀\n\n• House, Condo & Apartment Move-Out Cleaning\n• End of Tenancy & Rental Turnover Cleaning\n• Full Home Deep Cleaning Packages\n\n📞 Call TidyUps directly at 587-742-2500 or get your instant quote online at app.tidyupscleaning.com/booking",
+      headline: "Call TidyUps: 587-742-2500",
+      linkDescription: "Instant Online Booking Available",
+      ctaType: "CALL_NOW",
+      destinationUrl: "https://app.tidyupscleaning.com/booking",
+      displayLink: "app.tidyupscleaning.com",
+      promoBadge: "Edmonton Local Pros",
+    },
+  ],
+};
+
 export interface RsaCampaign {
   id: string;
   campaignName: string;
@@ -142,6 +256,7 @@ export interface RsaCampaign {
   maxCpcBidCad?: number;
   attachedImageUrl?: string;
   generatedImages?: GeneratedCleaningImage[];
+  facebookConfig?: FacebookCampaignConfig;
   updatedAt: string;
 }
 
@@ -550,6 +665,7 @@ export const TIDY_UP_PRESETS: Record<string, RsaCampaign> = {
     customerId: "1234567890",
     adGroupId: "9876543210",
     adStatus: "ENABLED",
+    facebookConfig: DEFAULT_FACEBOOK_CONFIG,
     updatedAt: new Date().toISOString(),
   },
 
@@ -689,6 +805,7 @@ export const TIDY_UP_PRESETS: Record<string, RsaCampaign> = {
     customerId: "1234567890",
     adGroupId: "9876543210",
     adStatus: "ENABLED",
+    facebookConfig: DEFAULT_FACEBOOK_CONFIG,
     updatedAt: new Date().toISOString(),
   },
 
@@ -828,6 +945,7 @@ export const TIDY_UP_PRESETS: Record<string, RsaCampaign> = {
     customerId: "1234567890",
     adGroupId: "9876543210",
     adStatus: "ENABLED",
+    facebookConfig: DEFAULT_FACEBOOK_CONFIG,
     updatedAt: new Date().toISOString(),
   },
 };
@@ -1488,6 +1606,23 @@ export function applyPhoneAndLocationToCampaign(
       description1: swapText(s.description1, 35),
       description2: swapText(s.description2, 35),
     })),
+    facebookConfig: campaign.facebookConfig
+      ? {
+          ...campaign.facebookConfig,
+          campaignName: swapText(campaign.facebookConfig.campaignName),
+          adSetName: swapText(campaign.facebookConfig.adSetName),
+          locations: campaign.facebookConfig.locations.map((loc) =>
+            swapText(loc)
+          ),
+          ads: campaign.facebookConfig.ads.map((ad) => ({
+            ...ad,
+            primaryText: swapText(ad.primaryText),
+            headline: swapText(ad.headline, 40),
+            linkDescription: swapText(ad.linkDescription, 30),
+            promoBadge: swapText(ad.promoBadge, 25),
+          })),
+        }
+      : undefined,
     updatedAt: new Date().toISOString(),
   };
 }

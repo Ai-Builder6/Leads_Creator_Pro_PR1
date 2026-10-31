@@ -39,6 +39,10 @@ import {
   logout,
 } from "../lib/googleAuth";
 import { PublicPageRoute } from "./PublicSitePages";
+import {
+  buildMetaAdsManagerCsv,
+  buildMetaMarketingApiPayload,
+} from "./FacebookAdsStudio";
 
 interface GoogleAdsLauncherViewProps {
   campaign: RsaCampaign;
@@ -217,16 +221,22 @@ export const GoogleAdsLauncherView: React.FC<GoogleAdsLauncherViewProps> = ({
   );
 
   const buildExtraArchiveFiles = () => {
-    const readme = `# TidyUps Cleaning — Google Ads RSA & Campaign Studio
+    const metaCsv = buildMetaAdsManagerCsv(campaign);
+    const metaPayload = buildMetaMarketingApiPayload(campaign);
+
+    const readme = `# TidyUps Cleaning — Google Ads RSA + Facebook & Instagram (Meta) Ads Studio
 Generated: ${new Date().toISOString()}
 Business: TidyUps Cleaning (${campaign.location || "Edmonton, AB"})
 Phone: ${campaign.phoneNumber || "587-742-2500"}
 Booking App Final URL: ${campaign.finalUrl}
 Google Tag ID: AW-18539302675
+Google AdSense ID: ca-pub-8415242080067854
 
 ## Included Campaign Exports (in /campaign-exports/)
 - tidyups-google-ads-mutate-payload.json (${atomicPayload.mutateOperations.length} atomic operations)
 - tidyups-google-ads-editor-import.csv (Ready for 1-click import in Google Ads Editor)
+- tidyups-facebook-instagram-ads-import.csv (Ready for Meta Ads Manager Bulk Import)
+- tidyups-meta-marketing-api-v21.json (Meta Marketing API v21 Campaign + Instant Lead Form JSON)
 
 ## How to Run Locally
 1. npm install
@@ -241,6 +251,12 @@ Google Tag ID: AW-18539302675
         2
       ),
       "campaign-exports/tidyups-google-ads-editor-import.csv": editorCsvContent,
+      "campaign-exports/tidyups-facebook-instagram-ads-import.csv": metaCsv,
+      "campaign-exports/tidyups-meta-marketing-api-v21.json": JSON.stringify(
+        metaPayload,
+        null,
+        2
+      ),
       "campaign-exports/README-TIDYUPS-CAMPAIGN.md": readme,
     };
   };
@@ -826,7 +842,7 @@ Google Tag ID: AW-18539302675
 
           <div className="lg:col-span-4">
             <div className="text-[11px] font-medium text-slate-700 mb-1">
-              5 Color-Coded Google Sheet Tabs Included:
+              6 Color-Coded Google Sheet Tabs Included:
             </div>
             <div className="flex flex-wrap gap-1">
               <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-teal-700 text-white">
@@ -843,6 +859,9 @@ Google Tag ID: AW-18539302675
               </span>
               <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-amber-600 text-white">
                 5. Bulk Import
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-semibold rounded brand-gradient text-white">
+                6. FB & IG Ads
               </span>
             </div>
           </div>
