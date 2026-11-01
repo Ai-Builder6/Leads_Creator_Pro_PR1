@@ -133,6 +133,14 @@ export default function App() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [saveFeedback, setSaveFeedback] = useState(false);
   const [copiedDescAll, setCopiedDescAll] = useState(false);
+  const [showDomainSetupModal, setShowDomainSetupModal] = useState(false);
+  const [copiedDomainItem, setCopiedDomainItem] = useState<string | null>(null);
+
+  const handleCopyDomainText = (key: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedDomainItem(key);
+    setTimeout(() => setCopiedDomainItem(null), 2000);
+  };
 
   // Asset filter & AI trim states
   const [headlineFilter, setHeadlineFilter] = useState<
@@ -712,6 +720,13 @@ export default function App() {
               </button>
               <button
                 type="button"
+                onClick={() => setShowDomainSetupModal((v) => !v)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-pink-500/30 bg-pink-500/10 text-pink-200 hover:bg-pink-500/20 transition-colors whitespace-nowrap shrink-0"
+              >
+                Live Domains (ads &amp; creator)
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveView("launch")}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full brand-gradient text-white transition-all whitespace-nowrap shrink-0"
               >
@@ -720,6 +735,136 @@ export default function App() {
               </button>
             </div>
           </div>
+
+          {showDomainSetupModal && (
+            <div className="mt-4 p-4 rounded-xl bg-slate-950 border border-pink-500/30 text-xs text-slate-200 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#ec4899]">
+                    Live Domain &amp; Preview Subdomain Configuration
+                  </div>
+                  <h3 className="text-sm font-bold text-white mt-0.5">
+                    Connect{" "}
+                    <code className="font-mono text-pink-300">
+                      ads.tidyupscleaning.com
+                    </code>{" "}
+                    (Live) &amp;{" "}
+                    <code className="font-mono text-purple-300">
+                      creator.tidyupscleaning.com
+                    </code>{" "}
+                    (Preview / Meta Reviewers)
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDomainSetupModal(false)}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="font-bold text-pink-300">
+                    Step 1 · Deploy &amp; Map Your 2 Subdomains in Cloud Run / DNS
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300 leading-relaxed">
+                    <li>
+                      Click <strong>Deploy</strong> (top-right of AI Studio) to publish your production Cloud Run service in project{" "}
+                      <code className="font-mono text-white">
+                        gen-lang-client-0366640958
+                      </code>
+                      .
+                    </li>
+                    <li>
+                      In <strong>Google Cloud Console → Cloud Run → Manage Custom Domains → Add Mapping</strong>, map your deployed service to{" "}
+                      <code className="font-mono text-pink-300">
+                        ads.tidyupscleaning.com
+                      </code>{" "}
+                      and{" "}
+                      <code className="font-mono text-purple-300">
+                        creator.tidyupscleaning.com
+                      </code>
+                      .
+                    </li>
+                    <li>
+                      In your DNS provider for{" "}
+                      <code className="font-mono text-white">
+                        tidyupscleaning.com
+                      </code>
+                      , add two <strong>CNAME</strong> records:
+                      <div className="mt-1.5 space-y-1 font-mono text-[11px] bg-slate-950 p-2 rounded border border-slate-800">
+                        <div>
+                          Host: <strong className="text-pink-300">ads</strong> · Type: <strong>CNAME</strong> · Value:{" "}
+                          <strong className="text-emerald-300">
+                            ghs.googlehosted.com.
+                          </strong>
+                        </div>
+                        <div>
+                          Host: <strong className="text-purple-300">creator</strong> · Type: <strong>CNAME</strong> · Value:{" "}
+                          <strong className="text-emerald-300">
+                            ghs.googlehosted.com.
+                          </strong>
+                        </div>
+                      </div>
+                    </li>
+                  </ol>
+                </div>
+
+                <div className="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-purple-300">
+                      Step 2 · Add Valid OAuth Redirect URIs (Meta &amp; Google)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopyDomainText(
+                          "meta-uris",
+                          [
+                            "https://ads.tidyupscleaning.com/auth/facebook/callback",
+                            "https://creator.tidyupscleaning.com/auth/facebook/callback",
+                            "https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app/auth/facebook/callback",
+                            "https://ais-dev-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app/auth/facebook/callback",
+                          ].join("\n")
+                        )
+                      }
+                      className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center gap-1"
+                    >
+                      {copiedDomainItem === "meta-uris" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          Copied All!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          Copy Meta URIs
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-slate-300">
+                    Your server automatically detects whether a user or Meta Reviewer visits via{" "}
+                    <code className="font-mono text-pink-300">
+                      ads.tidyupscleaning.com
+                    </code>{" "}
+                    or{" "}
+                    <code className="font-mono text-purple-300">
+                      creator.tidyupscleaning.com
+                    </code>
+                    . Add these to <strong>Meta Facebook Login → Valid OAuth Redirect URIs</strong>:
+                  </p>
+                  <div className="font-mono text-[11px] bg-slate-950 p-2 rounded border border-slate-800 space-y-1 text-slate-200 select-all">
+                    <div>https://ads.tidyupscleaning.com/auth/facebook/callback</div>
+                    <div>https://creator.tidyupscleaning.com/auth/facebook/callback</div>
+                    <div>https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app/auth/facebook/callback</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* View 0: Paste & Sort Studio */}
@@ -1580,6 +1725,10 @@ export default function App() {
             {campaign.phoneNumber || "587-742-2500"}) ·{" "}
             <span className="font-mono text-slate-700">
               ads.tidyupscleaning.com
+            </span>{" "}
+            &amp;{" "}
+            <span className="font-mono text-slate-700">
+              creator.tidyupscleaning.com
             </span>
           </div>
 

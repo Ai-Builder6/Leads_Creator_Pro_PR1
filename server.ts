@@ -670,12 +670,67 @@ app.post("/api/images/edit", async (req, res) => {
 });
 
 // Endpoint 7: Google Ads OAuth 2.0 Popup Flow & Connection Status
-function getRedirectUri(req: express.Request): string {
-  const baseUrl =
+function resolveRequestBaseUrl(req: express.Request): string {
+  const forwardedHost = String(
+    req.headers["x-forwarded-host"] || req.get("host") || ""
+  )
+    .split(",")[0]
+    .trim();
+  const forwardedProto = String(
+    req.headers["x-forwarded-proto"] || req.protocol || "https"
+  )
+    .split(",")[0]
+    .trim();
+
+  if (
+    forwardedHost &&
+    !forwardedHost.startsWith("localhost") &&
+    !forwardedHost.startsWith("127.0.0.1")
+  ) {
+    const scheme =
+      forwardedHost.includes("tidyupscleaning.com") ||
+      forwardedHost.includes("uptickqueen.com") ||
+      forwardedHost.includes(".run.app")
+        ? "https"
+        : forwardedProto || "https";
+    return `${scheme}://${forwardedHost.replace(/\/$/, "")}`;
+  }
+
+  return (
     process.env.APP_URL?.replace(/\/$/, "") ||
-    `${req.protocol}://${req.get("host")}`;
-  return `${baseUrl}/auth/callback`;
+    `${forwardedProto}://${forwardedHost || "ads.tidyupscleaning.com"}`
+  );
 }
+
+function getRedirectUri(req: express.Request): string {
+  return `${resolveRequestBaseUrl(req)}/auth/callback`;
+}
+
+app.get("/api/domain-status", (req, res) => {
+  const activeBaseUrl = resolveRequestBaseUrl(req);
+  res.json({
+    activeBaseUrl,
+    activeHost: req.headers["x-forwarded-host"] || req.get("host") || "",
+    primaryDomain: "https://ads.tidyupscleaning.com",
+    creatorDomain: "https://creator.tidyupscleaning.com",
+    sharedCloudRunUrl:
+      "https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app",
+    devCloudRunUrl:
+      "https://ais-dev-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app",
+    facebookCallbacks: [
+      "https://ads.tidyupscleaning.com/auth/facebook/callback",
+      "https://creator.tidyupscleaning.com/auth/facebook/callback",
+      "https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app/auth/facebook/callback",
+      "https://ais-dev-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app/auth/facebook/callback",
+    ],
+    googleCallbacks: [
+      "https://ads.tidyupscleaning.com/auth/callback",
+      "https://creator.tidyupscleaning.com/auth/callback",
+      "https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app/auth/callback",
+      "https://ais-dev-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app/auth/callback",
+    ],
+  });
+});
 
 app.get("/api/google-ads/status", (_req, res) => {
   res.json({
@@ -997,10 +1052,7 @@ app.post("/api/google-ads/launch", async (req, res) => {
 
 // Endpoint 8b: Facebook & Instagram (Meta) OAuth 2.0 Popup Flow, Ad Account Discovery & 1-Click Launch
 function getFacebookRedirectUri(req: express.Request): string {
-  const baseUrl =
-    process.env.APP_URL?.replace(/\/$/, "") ||
-    `${req.protocol}://${req.get("host")}`;
-  return `${baseUrl}/auth/facebook/callback`;
+  return `${resolveRequestBaseUrl(req)}/auth/facebook/callback`;
 }
 
 app.get("/api/facebook-ads/status", (_req, res) => {

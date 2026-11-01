@@ -416,7 +416,7 @@ export const FacebookAdsStudio: React.FC<FacebookAdsStudioProps> = ({
 3. Click "Launch Facebook & Instagram Ads" to create the Campaign (POST /v21.0/{ad_account_id}/campaigns), Ad Set (POST /v21.0/{ad_account_id}/adsets), Ad Creative, and Ad (POST /v21.0/{ad_account_id}/ads), as well as read campaign performance insights (GET /v21.0/{ad_account_id}/insights).
 All data is used strictly to manage and optimize TidyUps Cleaning's own advertising campaigns in full compliance with Meta Platform Terms and Advertising Policies.`;
 
-  const metaReviewInstructionsWeb2 = `1. Navigate to our web application at: https://ads.tidyupscleaning.com (Backup preview URL: https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app). If prompted for an access password/code, enter: tester2026
+  const metaReviewInstructionsWeb2 = `1. Navigate to our web application at: https://ads.tidyupscleaning.com (Creator / Preview Subdomain: https://creator.tidyupscleaning.com | Cloud Run Preview URL: https://ais-pre-s4kh2aprptaw47pnjbnu4n-460696821435.us-east5.run.app). If prompted for an access password/code, enter: tester2026
 2. In the top navigation tabs, click the "Facebook & Instagram Ads" tab (highlighted with the Meta badge).
 3. Under "Step 1 · Facebook & Instagram Business Account Connection", click the blue "Connect with Facebook" button.
 4. This launches the official Facebook Login OAuth dialog (https://www.facebook.com/v21.0/dialog/oauth) requesting public_profile, ads_management, ads_read, pages_show_list, and leads_retrieval permissions.
@@ -424,20 +424,21 @@ All data is used strictly to manage and optimize TidyUps Cleaning's own advertis
 6. Under "Step 2 · 1-Click Meta Lead Campaign Launcher", set a daily CAD budget, review the 3 residential cleaning Lead & Booking ads (linked to https://app.tidyupscleaning.com/booking and Privacy Policy https://ads.tidyupscleaning.com/privacy), and click "Launch Facebook & Instagram Ads" to test campaign/ad set/ad creation (POST /v21.0/{ad_account_id}/campaigns, /adsets, /ads) and insights retrieval (GET /v21.0/{ad_account_id}/insights).
 
 Confirmation of Meta APIs & Facebook Login Usage:
-We confirm that Facebook Login is actively integrated on this web platform. We only request public_profile alongside Marketing API permissions (ads_management, ads_read, pages_show_list, pages_read_engagement, leads_retrieval) to authenticate the business advertiser and manage TidyUps Cleaning ad campaigns. We do NOT request or use restricted personal profile permissions such as user_friends, user_gender, or user_birthday.`;
+We confirm that Facebook Login is actively integrated on this web platform (https://ads.tidyupscleaning.com and https://creator.tidyupscleaning.com). We only request public_profile alongside Marketing API permissions (ads_management, ads_read, pages_show_list, pages_read_engagement, leads_retrieval) to authenticate the business advertiser and manage TidyUps Cleaning ad campaigns. We do NOT request or use restricted personal profile permissions such as user_friends, user_gender, or user_birthday.`;
 
-  const metaReviewAccessCodeWeb1 = `No payment or paid membership is required to access or test any feature of https://ads.tidyupscleaning.com.
+  const metaReviewAccessCodeWeb1 = `No payment or paid membership is required to access or test any feature of https://ads.tidyupscleaning.com or https://creator.tidyupscleaning.com.
 If prompted for a reviewer access password/code, use: tester2026
 Reviewers may also click "Connect with Facebook" using any Meta Reviewer Test User account or paste a test Graph API token in the "Access Token" drawer under Step 1.`;
 
-  const metaReviewGeoWeb5 = `There are NO geo-blocking, IP, or country restrictions on accessing or testing this web application — Meta App Reviewers from any country worldwide can access https://ads.tidyupscleaning.com and https://app.tidyupscleaning.com/booking without restriction.
+  const metaReviewGeoWeb5 = `There are NO geo-blocking, IP, or country restrictions on accessing or testing this web application — Meta App Reviewers from any country worldwide can access https://ads.tidyupscleaning.com, https://creator.tidyupscleaning.com, and https://app.tidyupscleaning.com/booking without restriction.
 (Note: Our company, TidyUps Cleaning, physically performs residential move-out and deep cleaning services for customers in Edmonton, Alberta, Canada and surrounding areas, so the default ad campaign radius templates are pre-filled for Edmonton, AB, Canada.)`;
 
   const handleDownloadReviewDoc = () => {
     const docText = `====================================================================
 META APP REVIEW — VERIFICATION & TESTING DOCUMENTATION
 App Name: TidyUps Cleaning Ads Studio
-Primary Web App URL: https://ads.tidyupscleaning.com
+Primary Live URL: https://ads.tidyupscleaning.com
+Creator / Preview Subdomain: https://creator.tidyupscleaning.com
 Booking Portal URL: https://app.tidyupscleaning.com/booking
 Privacy Policy URL: https://ads.tidyupscleaning.com/privacy
 Terms & Conditions URL: https://ads.tidyupscleaning.com/terms
@@ -446,7 +447,7 @@ Business Phone: 587-742-2500 | Contact Email: cleaningserviceyeg@gmail.com
 ====================================================================
 
 1. SITE URL FOR REVIEW
-https://ads.tidyupscleaning.com
+https://ads.tidyupscleaning.com (and https://creator.tidyupscleaning.com)
 
 2. INSTRUCTIONS FOR ACCESSING & TESTING THE APP (instructions-web-2)
 ${metaReviewInstructionsWeb2}
