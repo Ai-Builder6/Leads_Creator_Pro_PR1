@@ -36,6 +36,7 @@ import {
   PublicSitePages,
   PublicPageRoute,
 } from "./components/PublicSitePages";
+import { BrandKitVaultAndSyncBar } from "./components/BrandKitVaultAndSyncBar";
 
 const STORAGE_KEY = "tidy_up_rsa_saved_campaigns_v4";
 
@@ -872,6 +873,12 @@ export default function App() {
             </div>
           )}
         </section>
+
+        {/* Easy Download Hub: 1024x1024 App Icon, Move-Out Media Kit, Bright Excel, Database Vault, Sheets Sync & Reminders */}
+        <BrandKitVaultAndSyncBar
+          campaign={campaign}
+          onUpdateCampaignMeta={updateCampaignMeta}
+        />
 
         {/* View 0: Paste & Sort Studio */}
         {activeView === "paste_sort" && (

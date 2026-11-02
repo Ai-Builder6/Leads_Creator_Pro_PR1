@@ -2781,6 +2781,39 @@ app.all("/api/facebook/data-deletion-callback", (req, res) => {
   });
 });
 
+// Serve Official 1024x1024 TidyUps Cleaning Brand Logo / App Icon at /app-icon-1024.svg
+app.get(["/app-icon-1024.svg", "/logo-1024.svg"], (_req, res) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#140b1d"/>
+        <stop offset="45%" stop-color="#4c1d95"/>
+        <stop offset="100%" stop-color="#db2777"/>
+      </linearGradient>
+      <linearGradient id="badge" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#ec4899"/>
+        <stop offset="100%" stop-color="#7c3aed"/>
+      </linearGradient>
+    </defs>
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <rect x="56" y="56" width="912" height="912" rx="180" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="6"/>
+    <rect x="312" y="145" width="400" height="360" rx="96" fill="url(#badge)" stroke="rgba(255,255,255,0.55)" stroke-width="5"/>
+    <path d="M372 325 L512 205 L652 325" fill="none" stroke="#ffffff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M408 305 L408 445 L616 445 L616 305" fill="none" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="473" y="328" width="34" height="34" fill="#fde047"/>
+    <rect x="517" y="328" width="34" height="34" fill="#fde047"/>
+    <rect x="473" y="372" width="34" height="34" fill="#fde047"/>
+    <rect x="517" y="372" width="34" height="34" fill="#fde047"/>
+    <text x="512" y="650" text-anchor="middle" fill="#ffffff" font-family="Plus Jakarta Sans, Inter, Arial, sans-serif" font-size="122" font-weight="900">TidyUps</text>
+    <text x="512" y="725" text-anchor="middle" fill="#f9a8d4" font-family="Plus Jakarta Sans, Inter, Arial, sans-serif" font-size="54" font-weight="800">CLEANING</text>
+    <rect x="182" y="780" width="660" height="88" rx="44" fill="rgba(15,23,42,0.75)" stroke="#f472b6" stroke-width="3"/>
+    <text x="512" y="836" text-anchor="middle" fill="#ffffff" font-family="JetBrains Mono, monospace" font-size="34" font-weight="700">tidyupscleaning.com</text>
+    <text x="512" y="918" text-anchor="middle" fill="#5eead4" font-family="Plus Jakarta Sans, Arial, sans-serif" font-size="28" font-weight="700">EDMONTON MOVE-OUT &amp; DEEP CLEAN · 587-742-2500</text>
+  </svg>`;
+  res.setHeader("Content-Type", "image/svg+xml");
+  res.send(svg);
+});
+
 async function startServer() {
   const PORT = 3000;
 

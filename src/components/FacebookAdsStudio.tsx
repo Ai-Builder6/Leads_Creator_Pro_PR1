@@ -37,6 +37,7 @@ import {
   MetaCtaType,
   DEFAULT_FACEBOOK_CONFIG,
 } from "../data/tidyUpPresets";
+import { downloadBrightStyledExcelWorkbook } from "../utils/tidyUpBrandDownloads";
 
 interface FacebookAdsStudioProps {
   campaign: RsaCampaign;
@@ -794,6 +795,15 @@ fbq('track', 'Lead', { content_name: 'TidyUps Cleaning Quote', currency: 'CAD', 
                   AI Generate 3 FB &amp; IG Ads
                 </>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => downloadBrightStyledExcelWorkbook(campaign)}
+              className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-xs cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Download Bright Colored Excel (.xls)
             </button>
 
             <button
