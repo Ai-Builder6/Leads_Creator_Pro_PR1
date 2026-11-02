@@ -45,7 +45,13 @@ function detectPublicRoute(pathname: string): PublicPageRoute | null {
     .toLowerCase()
     .replace(/\/+$/, "");
   if (clean === "/booking") return "booking";
-  if (clean === "/support") return "support";
+  if (
+    clean === "/support" ||
+    clean === "/data-deletion" ||
+    clean === "/delete-data"
+  ) {
+    return "support";
+  }
   if (clean === "/privacy") return "privacy";
   if (
     clean === "/t&c" ||
